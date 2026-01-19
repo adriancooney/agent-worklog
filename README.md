@@ -21,6 +21,55 @@ pnpm link --global
 
 This makes the `aw` command available globally from any directory.
 
+## Claude Code Integration
+
+The `aw` CLI includes a skill for Claude Code that automatically guides agents on when and how to log their work. You can install this skill either globally or per-project.
+
+### Global Installation (Recommended)
+
+Install the worklog skill and instructions to `~/.claude/` so they're available in all Claude Code sessions:
+
+```bash
+aw install --global
+```
+
+This will:
+- Create `~/.claude/skills/worklog/SKILL.md` with the worklog skill definition
+- Create or update `~/.claude/CLAUDE.md` with agent instructions for work logging
+- Make the skill available across all projects when using Claude Code
+
+### Project-Specific Installation
+
+Install the skill locally to a specific project:
+
+```bash
+cd /path/to/your/project
+aw install
+```
+
+This will:
+- Create `./.claude/skills/worklog/SKILL.md` in the current project
+- Create or update `./.claude/CLAUDE.md` with agent instructions
+- Make the skill available only for this project in Claude Code
+
+### What Gets Installed
+
+The install command sets up:
+
+1. **Skill Definition** (`SKILL.md`): Guides agents on:
+   - When to log work (feature completions, bug fixes, etc.)
+   - When NOT to log (trivial changes, exploration, failed attempts)
+   - Category selection and best practices
+   - Example usage patterns
+
+2. **Agent Instructions** (`CLAUDE.md`): Provides:
+   - Detailed guidelines for when to use the worklog
+   - Category selection criteria
+   - Description formatting guidelines
+   - Integration notes about automatic metadata collection
+
+The install command is idempotent - running it multiple times won't create duplicates.
+
 ## Usage
 
 Log a completed task with a category:
@@ -139,9 +188,11 @@ The CLI automatically collects contextual information:
 
 This metadata is stored with each entry for filtering and analysis.
 
-## Claude Code Skill
+## Project Structure
 
-This project includes a Claude Code skill in `skills/worklog/SKILL.md` that guides agents on when and how to log work. See `CLAUDE.md` for detailed agent instructions.
+### Claude Code Skill
+
+The project includes a Claude Code skill in `skills/worklog/SKILL.md` that guides agents on when and how to log work. To use this skill in Claude Code, run `aw install --global` to install it to `~/.claude/` or `aw install` for project-specific installation. See the "Claude Code Integration" section above for details.
 
 ## Next.js Application
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { $ } from 'zx';
-import { mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
@@ -329,6 +329,182 @@ describe('CLI Integration Tests', () => {
       expect(featureCount.count).toBe(2);
       expect(bugfixCount.count).toBe(1);
       db.close();
+    });
+  });
+
+  describe('Install Command', () => {
+    let tempClaudeDir: string;
+
+    beforeEach(() => {
+      tempClaudeDir = mkdtempSync(join(tmpdir(), 'claude-test-'));
+    });
+
+    afterEach(() => {
+      if (existsSync(tempClaudeDir)) {
+        rmSync(tempClaudeDir, { recursive: true, force: true });
+      }
+    });
+
+    const runInstallCli = async (args: string, cwd?: string) => {
+      const projectRoot = process.cwd();
+      const env = {
+        ...process.env,
+        HOME: tempClaudeDir,
+      };
+
+      $.env = env;
+
+      if (cwd) {
+        const result = await $`cd ${cwd} && tsx ${join(projectRoot, 'bin/aw.ts')} ${args.split(' ')}`;
+        return result;
+      }
+
+      const result = await $`tsx ${join(projectRoot, 'bin/aw.ts')} ${args.split(' ')}`;
+      return result;
+    };
+
+    it('should display help for install command', async () => {
+      const result = await runInstallCli('install --help');
+      expect(result.stdout).toContain('Install worklog skill and instructions for Claude Code');
+      expect(result.stdout).toContain('--global');
+    });
+
+    describe('Global Installation', () => {
+      it('should create .claude directory in home', async () => {
+        await runInstallCli('install --global');
+
+        const claudeDir = join(tempClaudeDir, '.claude');
+        expect(existsSync(claudeDir)).toBe(true);
+      });
+
+      it('should create skill file at correct path', async () => {
+        await runInstallCli('install --global');
+
+        const skillPath = join(tempClaudeDir, '.claude', 'skills', 'worklog', 'SKILL.md');
+        expect(existsSync(skillPath)).toBe(true);
+
+        const content = readFileSync(skillPath, 'utf8');
+        expect(content).toContain('# Agent Work Log');
+        expect(content).toContain('aw task');
+        expect(content).toContain('Categories');
+      });
+
+      it('should create CLAUDE.md file', async () => {
+        await runInstallCli('install --global');
+
+        const claudeMdPath = join(tempClaudeDir, '.claude', 'CLAUDE.md');
+        expect(existsSync(claudeMdPath)).toBe(true);
+
+        const content = readFileSync(claudeMdPath, 'utf8');
+        expect(content).toContain('# Agent Work Log');
+        expect(content).toContain('When to Log Work');
+        expect(content).toContain('--category');
+      });
+
+      it('should display success message for global install', async () => {
+        const result = await runInstallCli('install --global');
+
+        expect(result.stdout).toContain('Installing Agent Work Log globally');
+        expect(result.stdout).toContain('Successfully installed');
+        expect(result.stdout).toContain('available in all Claude Code sessions');
+      });
+
+      it('should not duplicate CLAUDE.md content on second install', async () => {
+        await runInstallCli('install --global');
+        const result = await runInstallCli('install --global');
+
+        expect(result.stdout).toContain('already contains Agent Work Log section');
+        expect(result.stdout).toContain('Skipping update');
+
+        const claudeMdPath = join(tempClaudeDir, '.claude', 'CLAUDE.md');
+        const content = readFileSync(claudeMdPath, 'utf8');
+
+        const matches = content.match(/# Agent Work Log/g);
+        expect(matches).toHaveLength(1);
+      });
+
+      it('should append to existing CLAUDE.md without overwriting', async () => {
+        const claudeMdPath = join(tempClaudeDir, '.claude', 'CLAUDE.md');
+        const existingContent = '# Existing Instructions\n\nSome existing content.\n';
+
+        await $`mkdir -p ${join(tempClaudeDir, '.claude')}`;
+        await $`echo ${existingContent} > ${claudeMdPath}`;
+
+        await runInstallCli('install --global');
+
+        const content = readFileSync(claudeMdPath, 'utf8');
+        expect(content).toContain('Existing Instructions');
+        expect(content).toContain('Some existing content');
+        expect(content).toContain('Agent Work Log');
+      });
+    });
+
+    describe('Local Installation', () => {
+      let projectDir: string;
+
+      beforeEach(() => {
+        projectDir = mkdtempSync(join(tmpdir(), 'project-test-'));
+      });
+
+      afterEach(() => {
+        if (existsSync(projectDir)) {
+          rmSync(projectDir, { recursive: true, force: true });
+        }
+      });
+
+      it('should create .claude directory in project', async () => {
+        await runInstallCli('install', projectDir);
+
+        const claudeDir = join(projectDir, '.claude');
+        expect(existsSync(claudeDir)).toBe(true);
+      });
+
+      it('should create skill file in project .claude directory', async () => {
+        await runInstallCli('install', projectDir);
+
+        const skillPath = join(projectDir, '.claude', 'skills', 'worklog', 'SKILL.md');
+        expect(existsSync(skillPath)).toBe(true);
+
+        const content = readFileSync(skillPath, 'utf8');
+        expect(content).toContain('# Agent Work Log');
+      });
+
+      it('should create CLAUDE.md in project directory', async () => {
+        await runInstallCli('install', projectDir);
+
+        const claudeMdPath = join(projectDir, '.claude', 'CLAUDE.md');
+        expect(existsSync(claudeMdPath)).toBe(true);
+
+        const content = readFileSync(claudeMdPath, 'utf8');
+        expect(content).toContain('# Agent Work Log');
+      });
+
+      it('should display success message for local install', async () => {
+        const result = await runInstallCli('install', projectDir);
+
+        expect(result.stdout).toContain('Installing Agent Work Log locally');
+        expect(result.stdout).toContain('Successfully installed');
+        expect(result.stdout).toContain('available for this project');
+      });
+
+      it('should install to different projects independently', async () => {
+        const project1 = mkdtempSync(join(tmpdir(), 'project1-'));
+        const project2 = mkdtempSync(join(tmpdir(), 'project2-'));
+
+        try {
+          await runInstallCli('install', project1);
+          await runInstallCli('install', project2);
+
+          const skill1 = join(project1, '.claude', 'skills', 'worklog', 'SKILL.md');
+          const skill2 = join(project2, '.claude', 'skills', 'worklog', 'SKILL.md');
+
+          expect(existsSync(skill1)).toBe(true);
+          expect(existsSync(skill2)).toBe(true);
+        } finally {
+          rmSync(project1, { recursive: true, force: true });
+          rmSync(project2, { recursive: true, force: true });
+        }
+      });
     });
   });
 });

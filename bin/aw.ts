@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import { logTask, collectMetadata } from '../src/db.js';
+import { install } from '../src/install.js';
 
 const program = new Command();
 
@@ -28,6 +29,24 @@ program
 
       const categoryInfo = metadata.category ? ` [${metadata.category}]` : '';
       console.log(`✓ Logged: ${description}${categoryInfo}`);
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(`Error: ${error.message}`);
+      } else {
+        console.error('An unknown error occurred');
+      }
+      process.exit(1);
+    }
+  });
+
+program
+  .command('install')
+  .description('Install worklog skill and instructions for Claude Code')
+  .option('-g, --global', 'Install globally to ~/.claude/ instead of local ./.claude/')
+  .action((options: { global?: boolean }) => {
+    try {
+      const isGlobal = options.global ?? false;
+      install(isGlobal);
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error: ${error.message}`);
