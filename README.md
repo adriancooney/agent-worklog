@@ -1,234 +1,134 @@
 # Agent Work Log
 
-A CLI tool for AI agents to track their work activities in a centralized SQLite database.
+A CLI tool for AI agents to track their work activities in a centralized SQLite database, with a web interface for browsing and AI-powered summaries.
 
 ## Features
 
-- **Simple CLI**: Log tasks with a single command
+- **Simple CLI**: Log tasks with `aw task`
+- **AI Summaries**: Generate summaries with `aw summary`
+- **Web Interface**: Browse logs visually with `aw web`
 - **Persistent Storage**: SQLite database in `~/.aw/worklog.db`
-- **Automatic Timestamps**: ISO 8601 format timestamps added automatically
-- **Global Access**: Works from any directory after installation
-- **Claude Code Integration**: Includes a skill for seamless agent integration
+- **Automatic Metadata**: Captures project name, git branch, working directory
+- **Claude Code Integration**: Includes skills and instructions for seamless agent integration
 
 ## Installation
-
-Install dependencies and link globally:
 
 ```bash
 pnpm install
 pnpm link --global
 ```
 
-This makes the `aw` command available globally from any directory.
+## Commands
 
-## Claude Code Integration
+### `aw task`
 
-The `aw` CLI includes a skill for Claude Code that automatically guides agents on when and how to log their work. You can install this skill either globally or per-project.
-
-### Global Installation (Recommended)
-
-Install the worklog skill and instructions to `~/.claude/` so they're available in all Claude Code sessions:
+Log a completed task:
 
 ```bash
-aw install --global
+aw task "Implemented JWT authentication" --category feature
+aw task "Fixed race condition in db pooling" -c bugfix
 ```
 
-This will:
-- Create `~/.claude/skills/worklog/SKILL.md` with the worklog skill definition
-- Create or update `~/.claude/CLAUDE.md` with agent instructions for work logging
-- Make the skill available across all projects when using Claude Code
+**Options:**
+- `-c, --category <category>` — Category (feature, bugfix, refactor, docs, config, test, perf, infra, security, or custom)
 
-### Project-Specific Installation
+### `aw summary`
 
-Install the skill locally to a specific project:
+Generate an AI summary of work entries:
 
 ```bash
-cd /path/to/your/project
-aw install
+aw summary                          # Last 7 days
+aw summary -d 30                    # Last 30 days
+aw summary --project my-app         # Filter by project
+aw summary -c feature -d 14         # Features from last 2 weeks
+aw summary --json                   # Machine-readable output
 ```
 
-This will:
-- Create `./.claude/skills/worklog/SKILL.md` in the current project
-- Create or update `./.claude/CLAUDE.md` with agent instructions
-- Make the skill available only for this project in Claude Code
+**Options:**
+- `-d, --days <number>` — Days to look back (default: 7)
+- `-c, --category <category>` — Filter by category
+- `-p, --project <project>` — Filter by project name
+- `--json` — Output raw JSON
 
-### What Gets Installed
+### `aw web`
 
-The install command sets up:
-
-1. **Skill Definition** (`SKILL.md`): Guides agents on:
-   - When to log work (feature completions, bug fixes, etc.)
-   - When NOT to log (trivial changes, exploration, failed attempts)
-   - Category selection and best practices
-   - Example usage patterns
-
-2. **Agent Instructions** (`CLAUDE.md`): Provides:
-   - Detailed guidelines for when to use the worklog
-   - Category selection criteria
-   - Description formatting guidelines
-   - Integration notes about automatic metadata collection
-
-The install command is idempotent - running it multiple times won't create duplicates.
-
-## Usage
-
-Log a completed task with a category:
+Start the web interface:
 
 ```bash
-aw task "Implemented JWT authentication with refresh tokens" --category feature
+aw web                  # Start on port 3000
+aw web -p 8080          # Custom port
 ```
 
-The command will:
-1. Generate an ISO 8601 timestamp
-2. Collect metadata (project name, git branch, working directory)
-3. Store the entry in `~/.aw/worklog.db`
-4. Display confirmation: `✓ Logged: <description> [category]`
+**Options:**
+- `-p, --port <number>` — Port to run on (default: 3000)
 
-### Categories
+### `aw install`
 
-Use `--category` (or `-c`) to categorize work:
-
-- `feature` - New functionality or capabilities
-- `bugfix` - Fixed defects or issues
-- `refactor` - Code restructuring without behavior change
-- `docs` - Documentation updates
-- `config` - Build, deployment, or infrastructure setup
-- `test` - Test additions or improvements
-- `perf` - Performance optimizations
-- `infra` - Infrastructure or tooling changes
-- `security` - Security improvements or fixes
-
-### Session Tracking
-
-Set the `CLAUDE_SESSION_ID` environment variable to correlate all work from a Claude session:
+Install Claude Code integration:
 
 ```bash
-export CLAUDE_SESSION_ID="session-2026-01-19-abc123"
-aw task "Implemented user authentication" --category feature
-aw task "Fixed login validation bug" --category bugfix
-# Both entries will be tagged with the same session_id
+aw install --global     # Install to ~/.claude/ (recommended)
+aw install              # Install to ./.claude/ (project-specific)
 ```
+
+This sets up:
+- Skill definition guiding agents on when/how to log work
+- CLAUDE.md instructions for work logging
+- Automatic permission grants for the `aw` command
 
 ## Database
 
-- **Location**: `~/.aw/worklog.db`
-- **Schema**:
-  - `id`: Auto-incrementing primary key
-  - `timestamp`: ISO 8601 timestamp (when logged)
-  - `task_description`: Text description of the work
-  - `session_id`: Claude session identifier (from env var, nullable)
-  - `category`: Work category (feature, bugfix, etc., nullable)
-  - `project_name`: Auto-detected from git repo or directory name
-  - `git_branch`: Auto-detected current branch (nullable)
-  - `working_directory`: Directory where command was run
-  - `created_at`: Unix timestamp (database insertion time)
+**Location:** `~/.aw/worklog.db`
 
-Query the database directly:
+**Schema:**
+| Column | Description |
+|--------|-------------|
+| `id` | Auto-incrementing primary key |
+| `timestamp` | ISO 8601 timestamp |
+| `task_description` | Description of the work |
+| `category` | Work category |
+| `session_id` | Claude session ID (from `CLAUDE_SESSION_ID` env var) |
+| `project_name` | Auto-detected from git or directory |
+| `git_branch` | Current git branch |
+| `working_directory` | Directory where command was run |
+
+**Query examples:**
 
 ```bash
-# View recent entries
+# Recent entries
 sqlite3 ~/.aw/worklog.db "SELECT * FROM work_entries ORDER BY created_at DESC LIMIT 10;"
 
-# Filter by category
-sqlite3 ~/.aw/worklog.db "SELECT task_description, category FROM work_entries WHERE category='feature';"
+# By category
+sqlite3 ~/.aw/worklog.db "SELECT task_description FROM work_entries WHERE category='feature';"
 
-# View entries by project
-sqlite3 ~/.aw/worklog.db "SELECT task_description, git_branch FROM work_entries WHERE project_name='agent-worklog';"
-
-# View entries from a session
-sqlite3 ~/.aw/worklog.db "SELECT * FROM work_entries WHERE session_id='session-123' ORDER BY created_at;"
+# By project
+sqlite3 ~/.aw/worklog.db "SELECT task_description FROM work_entries WHERE project_name='my-app';"
 ```
 
-## Database Management
+## Session Tracking
 
-This project uses [Drizzle ORM](https://orm.drizzle.team/) with DrizzleKit for type-safe database operations and migrations.
-
-### Migrations
-
-Migrations are automatically applied when the CLI runs. The migration files are located in the `drizzle/` directory.
-
-To generate a new migration after schema changes:
+Set `CLAUDE_SESSION_ID` to correlate entries from a single session:
 
 ```bash
-pnpm db:generate
+export CLAUDE_SESSION_ID="session-abc123"
+aw task "Implemented auth" --category feature
+aw task "Fixed login bug" --category bugfix
+# Both tagged with same session_id
 ```
-
-To view and manage the database visually:
-
-```bash
-pnpm db:studio
-```
-
-### Schema
-
-The database schema is defined in `src/schema.ts` using Drizzle ORM. Any changes to the schema should be followed by generating a new migration.
 
 ## Development
 
-Run the CLI locally without global installation:
-
 ```bash
-pnpm cli task "Test entry" --category test
+pnpm cli task "Test entry" -c test   # Run CLI locally
+pnpm dev                              # Run web app in dev mode
+pnpm test                             # Run tests
+pnpm db:studio                        # Visual database browser
+pnpm db:generate                      # Generate migration after schema changes
 ```
 
-Run tests:
+## Tech Stack
 
-```bash
-pnpm test
-```
-
-## Metadata Auto-Detection
-
-The CLI automatically collects contextual information:
-
-- **Project Name**: Extracted from git remote URL, or falls back to directory name
-- **Git Branch**: Current branch name (if in a git repository)
-- **Working Directory**: Full path where the command was executed
-- **Session ID**: From `CLAUDE_SESSION_ID` environment variable (optional)
-
-This metadata is stored with each entry for filtering and analysis.
-
-## Project Structure
-
-### Claude Code Skill
-
-The project includes a Claude Code skill in `skills/worklog/SKILL.md` that guides agents on when and how to log work. To use this skill in Claude Code, run `aw install --global` to install it to `~/.claude/` or `aw install` for project-specific installation. See the "Claude Code Integration" section above for details.
-
-## Next.js Application
-
-This project also includes a [Next.js](https://nextjs.org) application bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-### Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **CLI**: TypeScript, Commander.js, tsx
+- **Database**: SQLite via better-sqlite3, Drizzle ORM
+- **Web**: Next.js, React, Radix UI, Tailwind CSS
+- **AI**: Claude Agent SDK for summaries
