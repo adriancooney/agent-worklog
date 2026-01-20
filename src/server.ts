@@ -47,7 +47,7 @@ function parseBody(req: IncomingMessage): Promise<string> {
 }
 
 export function startServer(options: ServerOptions): Promise<ServerInstance> {
-  const { port, hostname = '127.0.0.1' } = options;
+  const { port, hostname = 'localhost' } = options;
   const token = generateToken();
 
   const server = createServer(async (req, res) => {

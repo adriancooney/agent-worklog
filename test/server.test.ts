@@ -18,7 +18,7 @@ describe('API Server', () => {
     logTask(new Date().toISOString(), 'Test entry 2', { ...metadata, category: 'bugfix' });
     logTask(new Date().toISOString(), 'Test entry 3', { ...metadata, category: 'feature' });
 
-    server = await startServer({ port: 0, hostname: '127.0.0.1' });
+    server = await startServer({ port: 0, hostname: 'localhost' });
   });
 
   afterAll(async () => {
@@ -34,7 +34,7 @@ describe('API Server', () => {
     options: { method?: string; body?: unknown; token?: string | null } = {}
   ) => {
     const { method = 'GET', body, token = server.token } = options;
-    const url = new URL(path, `http://127.0.0.1:${server.port}`);
+    const url = new URL(path, `http://localhost:${server.port}`);
 
     const headers: Record<string, string> = {};
     if (token) {
@@ -77,7 +77,7 @@ describe('API Server', () => {
 
     it('should accept requests with valid token in query string', async () => {
       const response = await fetch(
-        `http://127.0.0.1:${server.port}/api/worklog?token=${server.token}`
+        `http://localhost:${server.port}/api/worklog?token=${server.token}`
       );
       expect(response.status).toBe(200);
     });
@@ -91,7 +91,7 @@ describe('API Server', () => {
 
   describe('CORS', () => {
     it('should handle preflight OPTIONS request', async () => {
-      const response = await fetch(`http://127.0.0.1:${server.port}/api/worklog`, {
+      const response = await fetch(`http://localhost:${server.port}/api/worklog`, {
         method: 'OPTIONS',
       });
 
@@ -102,7 +102,7 @@ describe('API Server', () => {
     });
 
     it('should include CORS headers in responses', async () => {
-      const response = await fetch(`http://127.0.0.1:${server.port}/api/worklog`, {
+      const response = await fetch(`http://localhost:${server.port}/api/worklog`, {
         headers: { Authorization: `Bearer ${server.token}` },
       });
 
@@ -188,7 +188,7 @@ describe('API Server', () => {
 
   describe('Token Generation', () => {
     it('should generate unique tokens for each server instance', async () => {
-      const server2 = await startServer({ port: 0, hostname: '127.0.0.1' });
+      const server2 = await startServer({ port: 0, hostname: 'localhost' });
 
       expect(server.token).not.toBe(server2.token);
       expect(server.token.length).toBe(64); // 32 bytes = 64 hex chars

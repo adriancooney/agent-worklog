@@ -43,7 +43,7 @@ export function useLocalApi(): UseLocalApiResult {
 
   const checkConnection = async (port: number, token: string) => {
     try {
-      const response = await fetch(`http://127.0.0.1:${port}/health`);
+      const response = await fetch(`http://localhost:${port}/health`);
       if (response.ok) {
         setIsConnected(true);
         setError(null);
@@ -64,7 +64,7 @@ export function useLocalApi(): UseLocalApiResult {
       }
 
       const { method = 'GET', body } = options;
-      const url = `http://127.0.0.1:${config.port}${path}`;
+      const url = `http://localhost:${config.port}${path}`;
 
       const response = await fetch(url, {
         method,

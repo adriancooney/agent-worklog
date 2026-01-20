@@ -140,7 +140,7 @@ program
       const server = await startServer({ port });
       const webappUrl = `${WEBAPP_URL}?port=${port}&token=${server.token}`;
 
-      console.log(`Local API server running on http://127.0.0.1:${port}`);
+      console.log(`Local API server running on http://localhost:${port}`);
       console.log(`Token: ${server.token}\n`);
 
       if (options.noBrowser !== true) {
