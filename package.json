@@ -17,6 +17,7 @@
     "lint": "biome check",
     "format": "biome format --write",
     "cli": "tsx bin/aw.ts",
+    "cli:dev": "AW_CONFIG_DIR=$HOME/.aw-dev tsx bin/aw.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
