@@ -22,7 +22,10 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "changeset publish"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.12",
@@ -40,6 +43,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.0",
+    "@changesets/cli": "^2.29.8",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^20",
