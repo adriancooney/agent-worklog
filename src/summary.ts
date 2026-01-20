@@ -80,8 +80,6 @@ Provide a well-structured summary with:
     prompt,
     options: {
       allowedTools: [],
-      workingDir: process.cwd(),
-      settingSources: ['user'],
     },
   })) {
     if (msg.type === 'assistant' && msg.message?.content) {
