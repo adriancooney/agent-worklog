@@ -2,12 +2,15 @@
 
 This project includes an agent work logging system. When you complete meaningful work, use the `aw` CLI to log it.
 
+**Rule of thumb: Every commit should have a corresponding `aw task` entry.**
+
 ## When to Log Work
 
 Log work when you complete or accomplish:
 
 - **Feature implementations**: New functionality added to the system
 - **Bug fixes**: Issues resolved, defects corrected
+- **Debugging work**: Investigated and fixed issues (e.g., "Debugged and fixed API routing issue")
 - **Refactoring**: Significant code restructuring or improvements
 - **Architectural decisions**: Design changes, technology choices
 - **Performance optimizations**: Measurable improvements to speed or efficiency
@@ -15,6 +18,16 @@ Log work when you complete or accomplish:
 - **Documentation**: Meaningful additions beyond trivial updates
 - **Research tasks**: Completed investigations, explorations, or analysis that provides value
 - **Interesting explorations**: Even if incomplete, log work that explores a direction with meaningful findings or learnings
+
+## Triggers - When to Log
+
+Log your work immediately after:
+
+- **Pushing a commit** - Log what you accomplished in that commit
+- **Completing a task** - Before moving to the next task, log the completed one
+- **Fixing a bug** - Even if it took significant debugging to find
+- **Making a decision** - Architectural choices, technology selections
+- **Finishing research** - Document what you learned or discovered
 
 ## What NOT to Log
 
@@ -107,5 +120,9 @@ The following information is collected automatically with each entry:
 - **created_at**: Unix timestamp for database operations
 
 This metadata enables filtering and analysis of work across projects, sessions, and branches.
+
+---
+
+**Remember: Log your work with `aw task` after completing tasks. If you pushed a commit, log it!**
 
 <!-- End Agent Work Log -->
