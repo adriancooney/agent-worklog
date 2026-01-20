@@ -5,7 +5,7 @@ import { install } from '../src/install.js';
 import { generateSummary } from '../src/summary.js';
 import { startServer } from '../src/server.js';
 
-const WEBAPP_URL = process.env.AW_WEBAPP_URL ?? 'https://aw.adriancooney.ie';
+const WEBAPP_URL = process.env.AW_WEBAPP_URL ?? 'https://agent-worklog.vercel.app';
 
 const program = new Command();
 
