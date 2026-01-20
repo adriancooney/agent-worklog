@@ -80,6 +80,7 @@ Provide a well-structured summary with:
     prompt,
     options: {
       allowedTools: [],
+      settingSources: ['user'],
     },
   })) {
     if (msg.type === 'assistant' && msg.message?.content) {
