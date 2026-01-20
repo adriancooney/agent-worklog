@@ -1,7 +1,6 @@
 {
   "name": "agent-worklog",
   "version": "0.1.0",
-  "private": true,
   "bin": {
     "aw": "./bin/aw.ts"
   },
