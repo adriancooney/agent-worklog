@@ -1,13 +1,11 @@
 import { Command } from 'commander';
-import { spawn } from 'node:child_process';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { exec } from 'node:child_process';
 import { logTask, collectMetadata } from '../src/db.js';
 import { install } from '../src/install.js';
 import { generateSummary } from '../src/summary.js';
+import { startServer } from '../src/server.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const packageRoot = join(__dirname, '..');
+const WEBAPP_URL = process.env.AW_WEBAPP_URL ?? 'https://aw.adriancooney.ie';
 
 const program = new Command();
 
@@ -117,32 +115,56 @@ program
 
 interface WebOptions {
   port?: string;
+  noBrowser?: boolean;
+}
+
+function openBrowser(url: string): void {
+  const command =
+    process.platform === 'darwin'
+      ? 'open'
+      : process.platform === 'win32'
+        ? 'start'
+        : 'xdg-open';
+  exec(`${command} "${url}"`);
 }
 
 program
   .command('web')
-  .description('Start the web interface for browsing work logs')
-  .option('-p, --port <number>', 'Port to run on', '3000')
-  .action((options: WebOptions) => {
-    const port = options.port ?? '3000';
+  .description('Start local API server and open web interface')
+  .option('-p, --port <number>', 'Port for local API server', '24377')
+  .option('--no-browser', 'Do not open browser automatically')
+  .action(async (options: WebOptions) => {
+    const port = parseInt(options.port ?? '24377', 10);
 
-    console.log(`Starting work log viewer on http://localhost:${port}`);
-    console.log('Press Ctrl+C to stop\n');
+    try {
+      const server = await startServer({ port });
+      const webappUrl = `${WEBAPP_URL}?port=${port}&token=${server.token}`;
 
-    const next = spawn('npx', ['next', 'dev', '-p', port], {
-      cwd: packageRoot,
-      stdio: 'inherit',
-      shell: true,
-    });
+      console.log(`Local API server running on http://127.0.0.1:${port}`);
+      console.log(`Token: ${server.token}\n`);
 
-    next.on('error', (error) => {
-      console.error(`Error starting server: ${error.message}`);
+      if (options.noBrowser !== true) {
+        console.log(`Opening ${WEBAPP_URL}...`);
+        openBrowser(webappUrl);
+      } else {
+        console.log(`Open: ${webappUrl}`);
+      }
+
+      console.log('\nPress Ctrl+C to stop');
+
+      process.on('SIGINT', async () => {
+        console.log('\nShutting down...');
+        await server.close();
+        process.exit(0);
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(`Error: ${error.message}`);
+      } else {
+        console.error('An unknown error occurred');
+      }
       process.exit(1);
-    });
-
-    next.on('close', (code) => {
-      process.exit(code ?? 0);
-    });
+    }
   });
 
 program.parse();

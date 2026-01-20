@@ -411,14 +411,12 @@ describe('CLI Integration Tests', () => {
 
       it('should not duplicate CLAUDE.md content on second install', async () => {
         await runInstallCli('install --global');
-        const result = await runInstallCli('install --global');
-
-        expect(result.stdout).toContain('already contains Agent Work Log section');
-        expect(result.stdout).toContain('Skipping update');
+        await runInstallCli('install --global');
 
         const claudeMdPath = join(tempClaudeDir, '.claude', 'CLAUDE.md');
         const content = readFileSync(claudeMdPath, 'utf8');
 
+        // Should only have one Agent Work Log section (updated in place, not duplicated)
         const matches = content.match(/# Agent Work Log/g);
         expect(matches).toHaveLength(1);
       });
