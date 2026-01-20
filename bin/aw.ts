@@ -1,5 +1,3 @@
-#!/usr/bin/env tsx
-
 import { Command } from 'commander';
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
