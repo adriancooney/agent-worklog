@@ -1,10 +1,10 @@
-# Agent Work Log - Instructions for AI Agents
+# Agent Work Log
 
 This project includes an agent work logging system. When you complete meaningful work, use the `aw` CLI to log it.
 
 ## When to Log Work
 
-Log work when you complete:
+Log work when you complete or accomplish:
 
 - **Feature implementations**: New functionality added to the system
 - **Bug fixes**: Issues resolved, defects corrected
@@ -13,17 +13,17 @@ Log work when you complete:
 - **Performance optimizations**: Measurable improvements to speed or efficiency
 - **Configuration updates**: Build, deployment, or infrastructure changes
 - **Documentation**: Meaningful additions beyond trivial updates
+- **Research tasks**: Completed investigations, explorations, or analysis that provides value
+- **Interesting explorations**: Even if incomplete, log work that explores a direction with meaningful findings or learnings
 
 ## What NOT to Log
 
 Do not log:
 
-- Reading files or exploring the codebase
-- Planning activities or research
-- Failed attempts or incomplete work
+- Simple file reading without analysis
 - Trivial changes (typos, formatting, single-line fixes)
-- File operations without meaningful outcomes
-- Starting work (only log completions)
+- Starting work (only log completions or meaningful progress)
+- Pure planning without execution
 
 ## Usage
 
@@ -35,7 +35,7 @@ aw task "description of what was completed" --category <category>
 
 ## Categories
 
-Choose the most appropriate category:
+Choose the most appropriate category. Common categories include:
 
 - **feature** - New functionality or capabilities
 - **bugfix** - Fixed defects or issues
@@ -46,6 +46,9 @@ Choose the most appropriate category:
 - **perf** - Performance optimizations
 - **infra** - Infrastructure or tooling changes
 - **security** - Security improvements or fixes
+- **research** - Investigation, exploration, or analysis tasks
+
+**If none of these categories fit your work, create a descriptive category name that best represents what you accomplished.** Keep it concise (one word when possible) and use lowercase.
 
 ## Description Guidelines
 
@@ -69,6 +72,9 @@ aw task "Optimized image processing pipeline reducing memory by 40%" --category 
 aw task "Updated API documentation with authentication examples" --category docs
 aw task "Added unit tests for payment processing module" --category test
 aw task "Configured PostgreSQL connection pooling in production" --category config
+aw task "Researched authentication patterns and compared OAuth vs JWT" --category research
+aw task "Investigated performance bottleneck in data processing pipeline" --category research
+aw task "Explored WebSocket implementation approaches for real-time features" --category exploration
 ```
 
 ### Bad Examples
@@ -101,3 +107,5 @@ The following information is collected automatically with each entry:
 - **created_at**: Unix timestamp for database operations
 
 This metadata enables filtering and analysis of work across projects, sessions, and branches.
+
+<!-- End Agent Work Log -->

@@ -2,10 +2,14 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { homedir } from 'node:os';
-import { join, basename } from 'node:path';
+import { join, basename, dirname } from 'node:path';
 import { mkdirSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { workEntries, type NewWorkEntry } from './schema.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 function getConfigDir(): string {
   return process.env.AW_CONFIG_DIR ?? join(homedir(), '.aw');
@@ -19,7 +23,7 @@ export interface TaskMetadata {
   sessionId?: string;
   category?: string;
   projectName?: string;
-  gitBranch?: string;
+  gitBranch?: string | null;
   workingDirectory: string;
 }
 
@@ -70,6 +74,7 @@ function initDatabase() {
   try {
     const dbDir = getConfigDir();
     const dbPath = getDbPath();
+    const isNewDatabase = !existsSync(dbPath);
 
     if (!existsSync(dbDir)) {
       mkdirSync(dbDir, { recursive: true });
@@ -78,7 +83,11 @@ function initDatabase() {
     const sqlite = new Database(dbPath);
     const db = drizzle(sqlite);
 
-    migrate(db, { migrationsFolder: './drizzle' });
+    // Only run migrations if this is a new database
+    if (isNewDatabase) {
+      const migrationsPath = join(__dirname, '..', 'drizzle');
+      migrate(db, { migrationsFolder: migrationsPath });
+    }
 
     return { db, sqlite };
   } catch (error) {
