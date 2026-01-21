@@ -7,6 +7,31 @@ import Database from 'better-sqlite3';
 
 $.verbose = false;
 
+interface WorkEntryRow {
+  id: number;
+  timestamp: string;
+  task_description: string;
+  session_id: string | null;
+  category: string | null;
+  project_name: string | null;
+  git_branch: string | null;
+  working_directory: string | null;
+  created_at: number;
+}
+
+interface IndexRow {
+  name: string;
+}
+
+interface ColumnRow {
+  name: string;
+}
+
+interface CategoryCountRow {
+  category: string;
+  count: number;
+}
+
 describe('CLI Integration Tests', () => {
   let testConfigDir: string;
 
@@ -53,7 +78,7 @@ describe('CLI Integration Tests', () => {
       expect(result.stdout).toContain('✓ Logged: Test task description [feature]');
 
       const db = getDb();
-      const entries = db.prepare('SELECT * FROM work_entries').all();
+      const entries = db.prepare('SELECT * FROM work_entries').all() as WorkEntryRow[];
       expect(entries).toHaveLength(1);
       expect(entries[0].task_description).toBe('Test task description');
       db.close();
@@ -63,7 +88,7 @@ describe('CLI Integration Tests', () => {
       await runCli('task "Special chars: !@#$%^&*()" -c test');
 
       const db = getDb();
-      const entry = db.prepare('SELECT task_description FROM work_entries').get();
+      const entry = db.prepare('SELECT task_description FROM work_entries').get() as WorkEntryRow;
       expect(entry.task_description).toBe('Special chars: !@#$%^&*()');
       db.close();
     });
@@ -74,7 +99,7 @@ describe('CLI Integration Tests', () => {
       await runCli('task "Feature implementation" --category feature');
 
       const db = getDb();
-      const entry = db.prepare('SELECT category FROM work_entries').get();
+      const entry = db.prepare('SELECT category FROM work_entries').get() as WorkEntryRow;
       expect(entry.category).toBe('feature');
       db.close();
     });
@@ -83,7 +108,7 @@ describe('CLI Integration Tests', () => {
       await runCli('task "Bug fix" -c bugfix');
 
       const db = getDb();
-      const entry = db.prepare('SELECT category FROM work_entries').get();
+      const entry = db.prepare('SELECT category FROM work_entries').get() as WorkEntryRow;
       expect(entry.category).toBe('bugfix');
       db.close();
     });
@@ -106,7 +131,7 @@ describe('CLI Integration Tests', () => {
       }
 
       const db = getDb();
-      const entries = db.prepare('SELECT category FROM work_entries').all();
+      const entries = db.prepare('SELECT category FROM work_entries').all() as WorkEntryRow[];
       const storedCategories = entries.map((e) => e.category);
 
       for (const category of categories) {
@@ -120,7 +145,7 @@ describe('CLI Integration Tests', () => {
       await runCli('task "Task without category"');
 
       const db = getDb();
-      const entry = db.prepare('SELECT category FROM work_entries').get();
+      const entry = db.prepare('SELECT category FROM work_entries').get() as WorkEntryRow;
       expect(entry.category).toBeNull();
       db.close();
     });
@@ -135,7 +160,7 @@ describe('CLI Integration Tests', () => {
       });
 
       const db = getDb();
-      const entry = db.prepare('SELECT session_id FROM work_entries').get();
+      const entry = db.prepare('SELECT session_id FROM work_entries').get() as WorkEntryRow;
       expect(entry.session_id).toBe(sessionId);
       db.close();
     });
@@ -144,7 +169,7 @@ describe('CLI Integration Tests', () => {
       await runCli('task "No session" -c test');
 
       const db = getDb();
-      const entry = db.prepare('SELECT session_id FROM work_entries').get();
+      const entry = db.prepare('SELECT session_id FROM work_entries').get() as WorkEntryRow;
       expect(entry.session_id).toBeNull();
       db.close();
     });
@@ -172,7 +197,7 @@ describe('CLI Integration Tests', () => {
       await runCli('task "Git metadata test" -c test');
 
       const db = getDb();
-      const entry = db.prepare('SELECT project_name FROM work_entries').get();
+      const entry = db.prepare('SELECT project_name FROM work_entries').get() as WorkEntryRow;
       expect(entry.project_name).toBe('agent-worklog');
       db.close();
     });
@@ -181,7 +206,7 @@ describe('CLI Integration Tests', () => {
       await runCli('task "Branch test" -c test');
 
       const db = getDb();
-      const entry = db.prepare('SELECT git_branch FROM work_entries').get();
+      const entry = db.prepare('SELECT git_branch FROM work_entries').get() as WorkEntryRow;
       expect(entry.git_branch).toBeTruthy();
       expect(typeof entry.git_branch).toBe('string');
       db.close();
@@ -191,7 +216,7 @@ describe('CLI Integration Tests', () => {
       await runCli('task "Working dir test" -c test');
 
       const db = getDb();
-      const entry = db.prepare('SELECT working_directory FROM work_entries').get();
+      const entry = db.prepare('SELECT working_directory FROM work_entries').get() as WorkEntryRow;
       expect(entry.working_directory).toBeTruthy();
       expect(entry.working_directory).toContain('agent-worklog');
       db.close();
@@ -201,7 +226,7 @@ describe('CLI Integration Tests', () => {
       await runCli('task "Timestamp test" -c test');
 
       const db = getDb();
-      const entry = db.prepare('SELECT timestamp FROM work_entries').get();
+      const entry = db.prepare('SELECT timestamp FROM work_entries').get() as WorkEntryRow;
       expect(entry.timestamp).toMatch(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
       );
@@ -214,9 +239,9 @@ describe('CLI Integration Tests', () => {
       await runCli('task "Index test" -c test');
 
       const db = getDb();
-      const indexes = db
+      const indexes = (db
         .prepare("SELECT name FROM sqlite_master WHERE type='index'")
-        .all()
+        .all() as IndexRow[])
         .map((row) => row.name);
 
       expect(indexes).toContain('idx_timestamp');
@@ -230,7 +255,7 @@ describe('CLI Integration Tests', () => {
       await runCli('task "Schema test" -c test');
 
       const db = getDb();
-      const columns = db.prepare('PRAGMA table_info(work_entries)').all();
+      const columns = db.prepare('PRAGMA table_info(work_entries)').all() as ColumnRow[];
       const columnNames = columns.map((col) => col.name);
 
       expect(columnNames).toContain('id');
@@ -251,8 +276,9 @@ describe('CLI Integration Tests', () => {
       try {
         await runCli('task');
         expect.fail('Should have thrown an error');
-      } catch (error) {
-        expect(error.stderr || error.stdout).toContain("missing required argument 'description'");
+      } catch (error: unknown) {
+        const e = error as { stderr?: string; stdout?: string };
+        expect(e.stderr || e.stdout).toContain("missing required argument 'description'");
       }
     });
   });
@@ -289,7 +315,7 @@ describe('CLI Integration Tests', () => {
       }
 
       const db = getDb();
-      const entries = db.prepare('SELECT * FROM work_entries ORDER BY id').all();
+      const entries = db.prepare('SELECT * FROM work_entries ORDER BY id').all() as WorkEntryRow[];
       expect(entries).toHaveLength(3);
 
       for (let i = 0; i < tasks.length; i++) {
@@ -321,13 +347,13 @@ describe('CLI Integration Tests', () => {
       const db = getDb();
       const counts = db
         .prepare('SELECT category, COUNT(*) as count FROM work_entries GROUP BY category')
-        .all();
+        .all() as CategoryCountRow[];
 
       const featureCount = counts.find((c) => c.category === 'feature');
       const bugfixCount = counts.find((c) => c.category === 'bugfix');
 
-      expect(featureCount.count).toBe(2);
-      expect(bugfixCount.count).toBe(1);
+      expect(featureCount?.count).toBe(2);
+      expect(bugfixCount?.count).toBe(1);
       db.close();
     });
   });
@@ -502,6 +528,162 @@ describe('CLI Integration Tests', () => {
           rmSync(project1, { recursive: true, force: true });
           rmSync(project2, { recursive: true, force: true });
         }
+      });
+    });
+  });
+
+  describe('Uninstall Command', () => {
+    let tempClaudeDir: string;
+
+    beforeEach(() => {
+      tempClaudeDir = mkdtempSync(join(tmpdir(), 'claude-test-'));
+    });
+
+    afterEach(() => {
+      if (existsSync(tempClaudeDir)) {
+        rmSync(tempClaudeDir, { recursive: true, force: true });
+      }
+    });
+
+    const runUninstallCli = async (args: string, cwd?: string) => {
+      const projectRoot = process.cwd();
+      const env = {
+        ...process.env,
+        HOME: tempClaudeDir,
+      };
+
+      $.env = env;
+
+      if (cwd) {
+        const result = await $`cd ${cwd} && tsx ${join(projectRoot, 'bin/aw.ts')} ${args.split(' ')}`;
+        return result;
+      }
+
+      const result = await $`tsx ${join(projectRoot, 'bin/aw.ts')} ${args.split(' ')}`;
+      return result;
+    };
+
+    it('should display help for uninstall command', async () => {
+      const result = await runUninstallCli('uninstall --help');
+      expect(result.stdout).toContain('Remove worklog skill and instructions from Claude Code');
+      expect(result.stdout).toContain('--global');
+    });
+
+    describe('Global Uninstall', () => {
+      beforeEach(async () => {
+        await runUninstallCli('install --global');
+      });
+
+      it('should remove skill file', async () => {
+        const skillPath = join(tempClaudeDir, '.claude', 'skills', 'worklog', 'SKILL.md');
+        expect(existsSync(skillPath)).toBe(true);
+
+        await runUninstallCli('uninstall --global');
+
+        expect(existsSync(skillPath)).toBe(false);
+      });
+
+      it('should remove worklog directory if empty', async () => {
+        const worklogDir = join(tempClaudeDir, '.claude', 'skills', 'worklog');
+        expect(existsSync(worklogDir)).toBe(true);
+
+        await runUninstallCli('uninstall --global');
+
+        expect(existsSync(worklogDir)).toBe(false);
+      });
+
+      it('should remove Agent Work Log section from CLAUDE.md', async () => {
+        const claudeMdPath = join(tempClaudeDir, '.claude', 'CLAUDE.md');
+        expect(existsSync(claudeMdPath)).toBe(true);
+        expect(readFileSync(claudeMdPath, 'utf8')).toContain('# Agent Work Log');
+
+        await runUninstallCli('uninstall --global');
+
+        expect(existsSync(claudeMdPath)).toBe(false);
+      });
+
+      it('should preserve other CLAUDE.md content', async () => {
+        const claudeMdPath = join(tempClaudeDir, '.claude', 'CLAUDE.md');
+        const existingContent = '# My Custom Instructions\n\nSome content here.\n';
+        const currentContent = readFileSync(claudeMdPath, 'utf8');
+        const combinedContent = existingContent + '\n' + currentContent;
+        const { writeFileSync: writeFsSync } = await import('node:fs');
+        writeFsSync(claudeMdPath, combinedContent, 'utf8');
+
+        await runUninstallCli('uninstall --global');
+
+        expect(existsSync(claudeMdPath)).toBe(true);
+        const afterContent = readFileSync(claudeMdPath, 'utf8');
+        expect(afterContent).toContain('My Custom Instructions');
+        expect(afterContent).not.toContain('Agent Work Log');
+      });
+
+      it('should display success message', async () => {
+        const result = await runUninstallCli('uninstall --global');
+
+        expect(result.stdout).toContain('Uninstalling Agent Work Log globally');
+        expect(result.stdout).toContain('Successfully uninstalled');
+      });
+    });
+
+    describe('Local Uninstall', () => {
+      let projectDir: string;
+
+      beforeEach(async () => {
+        projectDir = mkdtempSync(join(tmpdir(), 'project-test-'));
+        await runUninstallCli('install', projectDir);
+      });
+
+      afterEach(() => {
+        if (existsSync(projectDir)) {
+          rmSync(projectDir, { recursive: true, force: true });
+        }
+      });
+
+      it('should remove skill file from project', async () => {
+        const skillPath = join(projectDir, '.claude', 'skills', 'worklog', 'SKILL.md');
+        expect(existsSync(skillPath)).toBe(true);
+
+        await runUninstallCli('uninstall', projectDir);
+
+        expect(existsSync(skillPath)).toBe(false);
+      });
+
+      it('should remove CLAUDE.md section from project', async () => {
+        const claudeMdPath = join(projectDir, '.claude', 'CLAUDE.md');
+        expect(existsSync(claudeMdPath)).toBe(true);
+
+        await runUninstallCli('uninstall', projectDir);
+
+        expect(existsSync(claudeMdPath)).toBe(false);
+      });
+
+      it('should display success message for local uninstall', async () => {
+        const result = await runUninstallCli('uninstall', projectDir);
+
+        expect(result.stdout).toContain('Uninstalling Agent Work Log locally');
+        expect(result.stdout).toContain('Successfully uninstalled');
+      });
+    });
+
+    describe('Edge Cases', () => {
+      it('should handle uninstall when nothing is installed', async () => {
+        const emptyDir = mkdtempSync(join(tmpdir(), 'empty-project-'));
+
+        try {
+          const result = await runUninstallCli('uninstall', emptyDir);
+          expect(result.stdout).toContain('Nothing to uninstall');
+        } finally {
+          rmSync(emptyDir, { recursive: true, force: true });
+        }
+      });
+
+      it('should handle double uninstall gracefully', async () => {
+        await runUninstallCli('install --global');
+        await runUninstallCli('uninstall --global');
+
+        const result = await runUninstallCli('uninstall --global');
+        expect(result.stdout).toContain('already removed');
       });
     });
   });

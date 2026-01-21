@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { exec } from 'node:child_process';
 import { logTask, collectMetadata } from '../src/db.js';
-import { install } from '../src/install.js';
+import { install, uninstall } from '../src/install.js';
 import { generateSummary } from '../src/summary.js';
 import { startServer } from '../src/server.js';
 
@@ -18,7 +18,7 @@ program
   .command('task')
   .description('Log a completed task')
   .argument('<description>', 'Description of the task')
-  .option('-c, --category <category>', 'Category: feature, bugfix, refactor, docs, config, test, perf, infra, security')
+  .option('-c, --category <category>', 'Category: feature, bugfix, refactor, docs, config, test, perf, infra, security, research')
   .action((description: string, options: { category?: string }) => {
     try {
       const timestamp = new Date().toISOString();
@@ -50,6 +50,24 @@ program
     try {
       const isGlobal = options.global ?? false;
       install(isGlobal);
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(`Error: ${error.message}`);
+      } else {
+        console.error('An unknown error occurred');
+      }
+      process.exit(1);
+    }
+  });
+
+program
+  .command('uninstall')
+  .description('Remove worklog skill and instructions from Claude Code')
+  .option('-g, --global', 'Uninstall globally from ~/.claude/ instead of local ./.claude/')
+  .action((options: { global?: boolean }) => {
+    try {
+      const isGlobal = options.global ?? false;
+      uninstall(isGlobal);
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error: ${error.message}`);

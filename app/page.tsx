@@ -194,9 +194,9 @@ export default function Home() {
     }).format(date);
   };
 
-  const getCategoryColor = (category: string | null): "gray" | "blue" | "red" | "purple" | "green" | "orange" | "cyan" | "yellow" | "crimson" => {
+  const getCategoryColor = (category: string | null): "gray" | "blue" | "red" | "purple" | "green" | "orange" | "cyan" | "yellow" | "crimson" | "indigo" => {
     if (!category) return 'gray';
-    const colors: Record<string, "gray" | "blue" | "red" | "purple" | "green" | "orange" | "cyan" | "yellow" | "crimson"> = {
+    const colors: Record<string, "gray" | "blue" | "red" | "purple" | "green" | "orange" | "cyan" | "yellow" | "crimson" | "indigo"> = {
       feature: 'blue',
       bugfix: 'red',
       refactor: 'purple',
@@ -206,6 +206,7 @@ export default function Home() {
       perf: 'yellow',
       infra: 'gray',
       security: 'crimson',
+      research: 'indigo',
     };
     return colors[category] || 'gray';
   };

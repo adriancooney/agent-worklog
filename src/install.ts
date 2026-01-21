@@ -1,6 +1,6 @@
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, existsSync, readFileSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 
 const SKILL_CONTENT = `# Agent Work Log
 
@@ -16,15 +16,16 @@ Use the \`aw task\` command to log work when you complete:
 - **Configuration changes**: Infrastructure, deployment, or build setup
 - **Performance improvements**: Optimizations that impact system behavior
 - **Documentation**: Meaningful additions to docs, READMEs, or guides
+- **Research findings**: Conclusions from investigating code, APIs, or technical approaches
 
 ## When NOT to Log
 
 Do not log:
 
-- Reading files or exploring code
+- Reading files or exploring code without conclusions
 - Failed attempts or incomplete work
 - Trivial changes (typos, formatting, single-line edits)
-- Planning or research activities
+- Preliminary planning without actionable outcomes
 - Tool invocations without meaningful outcomes
 
 ## Usage
@@ -48,6 +49,7 @@ Always include a category to help organize work. Choose from:
 - **perf** - Performance optimizations
 - **infra** - Infrastructure or tooling changes
 - **security** - Security improvements or fixes
+- **research** - Investigation findings, technical analysis, or exploration conclusions
 
 ## Examples
 
@@ -62,6 +64,7 @@ aw task "Optimized search query performance by 10x with indexing" --category per
 aw task "Updated API documentation with new endpoints" --category docs
 aw task "Added unit tests for authentication module" --category test
 aw task "Configured CI/CD pipeline for automated deployments" --category config
+aw task "Investigated WebSocket reconnection patterns for real-time sync" --category research
 \`\`\`
 
 ### Bad Examples
@@ -102,6 +105,7 @@ When choosing a category:
 - **perf** - Optimized queries, reduced memory usage, improved response time
 - **infra** - Set up deployment, configured monitoring, added logging
 - **security** - Fixed vulnerabilities, added authentication, improved permissions
+- **research** - Analyzed codebase architecture, evaluated library options, documented findings
 
 ## Integration
 
@@ -320,6 +324,162 @@ export function install(global: boolean): void {
 	} catch (error) {
 		if (error instanceof Error) {
 			throw new Error(`Failed to install: ${error.message}`);
+		}
+		throw error;
+	}
+}
+
+function removeSkill(claudeDir: string): void {
+	const skillsDir = join(claudeDir, 'skills');
+	const worklogSkillDir = join(skillsDir, 'worklog');
+	const skillPath = join(worklogSkillDir, 'SKILL.md');
+
+	if (existsSync(skillPath)) {
+		rmSync(skillPath);
+		console.log(`✓ Removed skill file ${skillPath}`);
+
+		// Remove worklog directory if empty
+		if (existsSync(worklogSkillDir) && readdirSync(worklogSkillDir).length === 0) {
+			rmSync(worklogSkillDir, { recursive: true });
+			console.log(`✓ Removed empty directory ${worklogSkillDir}`);
+		}
+
+		// Remove skills directory if empty
+		if (existsSync(skillsDir) && readdirSync(skillsDir).length === 0) {
+			rmSync(skillsDir, { recursive: true });
+			console.log(`✓ Removed empty directory ${skillsDir}`);
+		}
+	} else {
+		console.log(`✓ Skill file not found (already removed)`);
+	}
+}
+
+function removeFromSettings(claudeDir: string): void {
+	const settingsPath = join(claudeDir, 'settings.json');
+
+	if (!existsSync(settingsPath)) {
+		console.log(`✓ Settings file not found (nothing to remove)`);
+		return;
+	}
+
+	const content = readFileSync(settingsPath, 'utf8');
+	const settings = JSON.parse(content);
+	let modified = false;
+
+	// Remove aw command permission
+	const awPermission = 'Bash(aw:*)';
+	if (settings.permissions?.allow?.includes(awPermission)) {
+		settings.permissions.allow = settings.permissions.allow.filter(
+			(p: string) => p !== awPermission
+		);
+		modified = true;
+		console.log(`✓ Removed aw command permission`);
+	} else {
+		console.log(`✓ aw command permission not found (already removed)`);
+	}
+
+	// Remove worklog hook from UserPromptSubmit
+	if (settings.hooks?.UserPromptSubmit) {
+		const originalLength = settings.hooks.UserPromptSubmit.length;
+		settings.hooks.UserPromptSubmit = settings.hooks.UserPromptSubmit.filter(
+			(entry: any) => !entry.hooks?.some((h: any) => h.command?.includes('aw hooks remind'))
+		);
+
+		if (settings.hooks.UserPromptSubmit.length < originalLength) {
+			modified = true;
+			console.log(`✓ Removed UserPromptSubmit hook`);
+		} else {
+			console.log(`✓ UserPromptSubmit hook not found (already removed)`);
+		}
+
+		// Clean up empty hooks array
+		if (settings.hooks.UserPromptSubmit.length === 0) {
+			delete settings.hooks.UserPromptSubmit;
+		}
+
+		// Clean up empty hooks object
+		if (Object.keys(settings.hooks).length === 0) {
+			delete settings.hooks;
+		}
+	}
+
+	// Clean up empty permissions.allow array
+	if (settings.permissions?.allow?.length === 0) {
+		delete settings.permissions.allow;
+	}
+
+	// Clean up empty permissions object
+	if (settings.permissions && Object.keys(settings.permissions).length === 0) {
+		delete settings.permissions;
+	}
+
+	if (modified) {
+		writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+		console.log(`✓ Updated ${settingsPath}`);
+	}
+}
+
+function removeFromClaudeMd(claudeDir: string): void {
+	const claudeMdPath = join(claudeDir, 'CLAUDE.md');
+
+	if (!existsSync(claudeMdPath)) {
+		console.log(`✓ CLAUDE.md not found (nothing to remove)`);
+		return;
+	}
+
+	let content = readFileSync(claudeMdPath, 'utf8');
+
+	const startMarker = '# Agent Work Log';
+	const endMarker = '<!-- End Agent Work Log -->';
+
+	if (content.includes(startMarker) && content.includes(endMarker)) {
+		const startIndex = content.indexOf(startMarker);
+		const endIndex = content.indexOf(endMarker) + endMarker.length;
+
+		const before = content.substring(0, startIndex);
+		const after = content.substring(endIndex);
+
+		// Clean up extra newlines
+		const updatedContent = (before.trimEnd() + '\n' + after.trimStart()).trim();
+
+		if (updatedContent.length === 0) {
+			// File would be empty, remove it
+			rmSync(claudeMdPath);
+			console.log(`✓ Removed empty ${claudeMdPath}`);
+		} else {
+			writeFileSync(claudeMdPath, updatedContent + '\n', 'utf8');
+			console.log(`✓ Removed Agent Work Log section from ${claudeMdPath}`);
+		}
+	} else if (content.includes(startMarker)) {
+		console.log(`⚠ CLAUDE.md contains Agent Work Log section without end marker`);
+		console.log('  Cannot safely remove. Please manually remove the section.');
+	} else {
+		console.log(`✓ Agent Work Log section not found in CLAUDE.md (already removed)`);
+	}
+}
+
+export function uninstall(global: boolean): void {
+	try {
+		const claudeDir = getClaudeDir(global);
+		const scope = global ? 'globally' : 'locally';
+
+		console.log(`Uninstalling Agent Work Log ${scope}...`);
+		console.log(`Target directory: ${claudeDir}\n`);
+
+		if (!existsSync(claudeDir)) {
+			console.log(`Claude directory not found at ${claudeDir}`);
+			console.log('Nothing to uninstall.');
+			return;
+		}
+
+		removeSkill(claudeDir);
+		removeFromSettings(claudeDir);
+		removeFromClaudeMd(claudeDir);
+
+		console.log(`\n✓ Successfully uninstalled Agent Work Log ${scope}`);
+	} catch (error) {
+		if (error instanceof Error) {
+			throw new Error(`Failed to uninstall: ${error.message}`);
 		}
 		throw error;
 	}

@@ -1,36 +1,67 @@
-# Agent Work Log
+# Agent Worklog
 
-A CLI tool for AI agents to track their work activities in a centralized SQLite database, with a web interface for browsing and AI-powered summaries.
+A CLI tool for AI agents to track their work activities, with a web interface for browsing and AI-powered summaries.
 
 ## Features
 
-- **Simple CLI**: Log tasks with `aw task`
-- **AI Summaries**: Generate summaries with `aw summary`
-- **Web Interface**: Browse logs visually with `aw web`
-- **Persistent Storage**: SQLite database in `~/.aw/worklog.db`
+- **AI Summaries**: Generate summaries of completed work with `aw summary`
+- **Web Interface**: Browse logs visually with filters and summaries via `aw web`
+- **Claude Code Integration**: Skills and instructions for seamless agent integration
 - **Automatic Metadata**: Captures project name, git branch, working directory
-- **Claude Code Integration**: Includes skills and instructions for seamless agent integration
+
+![Web Interface](./docs/screenshot.png)
 
 ## Installation
 
 ```bash
-pnpm install
-pnpm link --global
+npm install -g agent-worklog
+```
+
+## Setup
+
+Run the install command to set up Claude Code integration:
+
+```bash
+aw install --global
+```
+
+This configures your `~/.claude/` directory with:
+- **Skills**: A `skills/worklog/SKILL.md` file that guides agents on when and how to log work
+- **Instructions**: Adds a section to `CLAUDE.md` with concise logging guidelines
+- **Permissions**: Grants automatic permission for the `aw` command in `settings.json`
+- **Hooks**: Adds a `UserPromptSubmit` hook that reminds agents to log completed work
+
+For project-specific installation (adds to `./.claude/` instead):
+
+```bash
+aw install
 ```
 
 ## Commands
 
-### `aw task`
+### `aw install`
 
-Log a completed task:
+Install Claude Code integration:
 
 ```bash
-aw task "Implemented JWT authentication" --category feature
-aw task "Fixed race condition in db pooling" -c bugfix
+aw install --global     # Install to ~/.claude/ (recommended)
+aw install              # Install to ./.claude/ (project-specific)
 ```
 
 **Options:**
-- `-c, --category <category>` — Category (feature, bugfix, refactor, docs, config, test, perf, infra, security, or custom)
+- `-g, --global` — Install globally to `~/.claude/` instead of local `./.claude/`
+
+### `aw uninstall`
+
+Remove Claude Code integration:
+
+```bash
+aw uninstall --global   # Remove from ~/.claude/
+aw uninstall            # Remove from ./.claude/
+```
+
+**Options:**
+- `-g, --global` — Uninstall globally from `~/.claude/` instead of local `./.claude/`
 
 ### `aw summary`
 
@@ -52,83 +83,42 @@ aw summary --json                   # Machine-readable output
 
 ### `aw web`
 
-Start the web interface:
+Start the web interface to browse your worklog with filters and AI summaries:
 
 ```bash
-aw web                  # Start on port 3000
+aw web                  # Start server and open web UI
 aw web -p 8080          # Custom port
+aw web --no-browser     # Don't open browser automatically
 ```
 
 **Options:**
-- `-p, --port <number>` — Port to run on (default: 3000)
+- `-p, --port <number>` — Port for local API server (default: 24377)
+- `--host <url>` — Custom webapp URL for local development
+- `--no-browser` — Don't open browser automatically
 
-### `aw install`
+### `aw task`
 
-Install Claude Code integration:
-
-```bash
-aw install --global     # Install to ~/.claude/ (recommended)
-aw install              # Install to ./.claude/ (project-specific)
-```
-
-This sets up:
-- Skill definition guiding agents on when/how to log work
-- CLAUDE.md instructions for work logging
-- Automatic permission grants for the `aw` command
-
-## Database
-
-**Location:** `~/.aw/worklog.db`
-
-**Schema:**
-| Column | Description |
-|--------|-------------|
-| `id` | Auto-incrementing primary key |
-| `timestamp` | ISO 8601 timestamp |
-| `task_description` | Description of the work |
-| `category` | Work category |
-| `session_id` | Claude session ID (from `CLAUDE_SESSION_ID` env var) |
-| `project_name` | Auto-detected from git or directory |
-| `git_branch` | Current git branch |
-| `working_directory` | Directory where command was run |
-
-**Query examples:**
+Log a completed task. This command is primarily used by AI agents during their work sessions:
 
 ```bash
-# Recent entries
-sqlite3 ~/.aw/worklog.db "SELECT * FROM work_entries ORDER BY created_at DESC LIMIT 10;"
-
-# By category
-sqlite3 ~/.aw/worklog.db "SELECT task_description FROM work_entries WHERE category='feature';"
-
-# By project
-sqlite3 ~/.aw/worklog.db "SELECT task_description FROM work_entries WHERE project_name='my-app';"
+aw task "Implemented JWT authentication" --category feature
+aw task "Fixed race condition in db pooling" -c bugfix
+aw task "Analyzed auth patterns and recommended OAuth2 approach" -c research
 ```
 
-## Session Tracking
+**Options:**
+- `-c, --category <category>` — Category: feature, bugfix, refactor, docs, config, test, perf, infra, security, research
 
-Set `CLAUDE_SESSION_ID` to correlate entries from a single session:
-
-```bash
-export CLAUDE_SESSION_ID="session-abc123"
-aw task "Implemented auth" --category feature
-aw task "Fixed login bug" --category bugfix
-# Both tagged with same session_id
-```
-
-## Development
-
-```bash
-pnpm cli task "Test entry" -c test   # Run CLI locally
-pnpm dev                              # Run web app in dev mode
-pnpm test                             # Run tests
-pnpm db:studio                        # Visual database browser
-pnpm db:generate                      # Generate migration after schema changes
-```
-
-## Tech Stack
-
-- **CLI**: TypeScript, Commander.js, tsx
-- **Database**: SQLite via better-sqlite3, Drizzle ORM
-- **Web**: Next.js, React, Radix UI, Tailwind CSS
-- **AI**: Claude Agent SDK for summaries
+**Categories:**
+| Category | Use for |
+|----------|---------|
+| `feature` | New functionality or capabilities |
+| `bugfix` | Fixed defects or issues |
+| `refactor` | Code restructuring without behavior change |
+| `docs` | Documentation updates |
+| `config` | Build, deployment, or infrastructure setup |
+| `test` | Test additions or improvements |
+| `perf` | Performance optimizations |
+| `infra` | Infrastructure or tooling changes |
+| `security` | Security improvements or fixes |
+| `research` | Investigation findings, technical analysis, exploration conclusions |

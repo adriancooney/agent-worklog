@@ -1,5 +1,15 @@
 # agent-worklog
 
+## 0.3.0
+
+### Minor Changes
+
+- Add uninstall command and research category
+
+  - Added `aw uninstall` command to remove Claude Code integration (supports both `--global` and local modes)
+  - Added `research` as a new task category for logging investigation findings and technical analysis
+  - Updated skill instructions to clarify when to log research findings vs exploration without conclusions
+
 ## 0.2.1
 
 ### Patch Changes
