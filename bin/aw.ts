@@ -140,17 +140,14 @@ program
       const server = await startServer({ port });
       const webappUrl = `${WEBAPP_URL}?port=${port}&token=${server.token}`;
 
-      console.log(`Local API server running on http://localhost:${port}`);
-      console.log(`Token: ${server.token}\n`);
+      console.log(`Local API server running on http://localhost:${port}\n`);
+      console.log(`Open: ${webappUrl}\n`);
 
       if (options.noBrowser !== true) {
-        console.log(`Opening ${WEBAPP_URL}...`);
         openBrowser(webappUrl);
-      } else {
-        console.log(`Open: ${webappUrl}`);
       }
 
-      console.log('\nPress Ctrl+C to stop');
+      console.log('Press Ctrl+C to stop');
 
       process.on('SIGINT', async () => {
         console.log('\nShutting down...');
