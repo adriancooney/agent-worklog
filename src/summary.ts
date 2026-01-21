@@ -64,15 +64,30 @@ export async function generateSummary(options: SummaryOptions = {}): Promise<Sum
     ? ` (filtered by ${filterContext.join(' and ')})`
     : '';
 
-  const prompt = `You are analyzing a work log from an AI agent. Please provide a concise summary of the work completed in the last ${daysBack} days${filterNote}. Group the work by themes or categories, and highlight key accomplishments.
+  const prompt = `You are analyzing a work log from an AI agent. Provide a concise summary of the work completed in the last ${daysBack} days${filterNote}.
 
 Work entries:
 ${entriesText}
 
-Provide a well-structured summary with:
-1. Overview of total work done
-2. Key accomplishments grouped by theme
-3. Notable patterns or insights`;
+Structure your response in two parts separated by "---" on its own line:
+
+1. FIRST: A brief 1-2 sentence overview (no title/heading, just the text)
+2. THEN: "---" separator on its own line
+3. FINALLY: Detailed breakdown with key accomplishments grouped by theme (no main title, just start with the content or subheadings)
+
+IMPORTANT: Do NOT include any title like "Overview", "Summary", or "Work Summary" at the start. Just start directly with the content.
+
+Example format:
+Completed 15 tasks focusing on authentication and API improvements. Major accomplishments include JWT implementation and database optimization.
+
+---
+
+**Authentication & Security**
+- Implemented JWT with refresh tokens
+- Added rate limiting
+
+**Performance**
+- Optimized database queries`;
 
   let summary = '';
 

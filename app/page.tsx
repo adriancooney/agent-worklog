@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -13,11 +13,38 @@ import {
   Badge,
   Callout,
   Spinner,
-  Tabs,
   Code,
 } from '@radix-ui/themes';
+import { ChevronDownIcon, ChevronUpIcon, ReloadIcon } from '@radix-ui/react-icons';
 import ReactMarkdown from 'react-markdown';
 import { useLocalApi } from './hooks/useLocalApi';
+
+function getSummaryCacheKey(filters: { category: string; projectName: string; daysBack: string }): string {
+  return `aw-summary-${filters.daysBack}-${filters.category}-${filters.projectName}`;
+}
+
+function getCachedSummary(filters: { category: string; projectName: string; daysBack: string }): string | null {
+  if (typeof window === 'undefined') return null;
+  const key = getSummaryCacheKey(filters);
+  return localStorage.getItem(key);
+}
+
+function setCachedSummary(filters: { category: string; projectName: string; daysBack: string }, summary: string): void {
+  if (typeof window === 'undefined') return;
+  const key = getSummaryCacheKey(filters);
+  localStorage.setItem(key, summary);
+}
+
+function parseSummary(summary: string): { preview: string; details: string } {
+  const separatorIndex = summary.indexOf('\n---\n');
+  if (separatorIndex === -1) {
+    const firstParagraph = summary.split('\n\n')[0] || summary;
+    return { preview: firstParagraph, details: summary };
+  }
+  const preview = summary.slice(0, separatorIndex).trim();
+  const details = summary.slice(separatorIndex + 5).trim();
+  return { preview, details };
+}
 
 interface WorkEntry {
   id: number;
@@ -37,6 +64,18 @@ interface WorkLogData {
   projects: string[];
 }
 
+function getInitialFilters(): { category: string; projectName: string; daysBack: string } {
+  if (typeof window === 'undefined') {
+    return { category: 'all', projectName: 'all', daysBack: '7' };
+  }
+  const params = new URLSearchParams(window.location.search);
+  return {
+    category: params.get('category') || 'all',
+    projectName: params.get('projectName') || 'all',
+    daysBack: params.get('daysBack') || '7',
+  };
+}
+
 export default function Home() {
   const { isConnected, isConnecting, error: connectionError, fetchApi } = useLocalApi();
 
@@ -46,12 +85,12 @@ export default function Home() {
 
   const [summary, setSummary] = useState<string>('');
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
-  const [filters, setFilters] = useState({
-    category: 'all',
-    projectName: 'all',
-    daysBack: '7',
-  });
+  const [filters, setFilters] = useState(getInitialFilters);
+
+  const [visibleEntries, setVisibleEntries] = useState(10);
+  const ENTRIES_PER_PAGE = 10;
 
   const fetchData = useCallback(async () => {
     if (!isConnected) return;
@@ -67,6 +106,7 @@ export default function Home() {
 
       const result = await fetchApi<WorkLogData>(`/api/worklog?${params.toString()}`);
       setData(result);
+      setVisibleEntries(ENTRIES_PER_PAGE);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
@@ -74,24 +114,37 @@ export default function Home() {
     }
   }, [isConnected, fetchApi, filters]);
 
-  const fetchSummary = useCallback(async () => {
+  const fetchSummary = useCallback(async (forceRegenerate = false) => {
     if (!isConnected) return;
+
+    if (!forceRegenerate) {
+      const cached = getCachedSummary(filters);
+      if (cached) {
+        setSummary(cached);
+        return;
+      }
+    }
 
     setIsLoadingSummary(true);
 
     try {
+      const params: Record<string, unknown> = { daysBack: parseInt(filters.daysBack, 10) };
+      if (filters.category !== 'all') params.category = filters.category;
+      if (filters.projectName !== 'all') params.projectName = filters.projectName;
+
       const result = await fetchApi<{ summary: string }>('/api/summary', {
         method: 'POST',
-        body: { daysBack: parseInt(filters.daysBack, 10) },
+        body: params,
       });
       setSummary(result.summary);
+      setCachedSummary(filters, result.summary);
     } catch (err) {
       console.error('Error fetching summary:', err);
       setSummary('Failed to generate summary.');
     } finally {
       setIsLoadingSummary(false);
     }
-  }, [isConnected, fetchApi, filters.daysBack]);
+  }, [isConnected, fetchApi, filters]);
 
   useEffect(() => {
     if (isConnected) {
@@ -100,10 +153,35 @@ export default function Home() {
   }, [isConnected, fetchData]);
 
   useEffect(() => {
-    if (isConnected && data && data.entries.length > 0 && !summary && !isLoadingSummary) {
+    if (isConnected && data && data.entries.length > 0 && !isLoadingSummary) {
       fetchSummary();
     }
-  }, [isConnected, data, summary, isLoadingSummary, fetchSummary]);
+  }, [isConnected, data, isLoadingSummary, fetchSummary]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    if (filters.category !== 'all') {
+      params.set('category', filters.category);
+    } else {
+      params.delete('category');
+    }
+
+    if (filters.projectName !== 'all') {
+      params.set('projectName', filters.projectName);
+    } else {
+      params.delete('projectName');
+    }
+
+    if (filters.daysBack !== '7') {
+      params.set('daysBack', filters.daysBack);
+    } else {
+      params.delete('daysBack');
+    }
+
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [filters]);
 
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -191,10 +269,7 @@ export default function Home() {
               </Text>
               <Select.Root
                 value={filters.daysBack}
-                onValueChange={(value) => {
-                  setFilters({ ...filters, daysBack: value });
-                  setSummary('');
-                }}
+                onValueChange={(value) => setFilters({ ...filters, daysBack: value })}
               >
                 <Select.Trigger style={{ width: '100%' }} />
                 <Select.Content>
@@ -256,164 +331,192 @@ export default function Home() {
           </Flex>
         </Card>
 
-        <Tabs.Root defaultValue="summary">
-          <Tabs.List>
-            <Tabs.Trigger value="summary">AI Summary</Tabs.Trigger>
-            <Tabs.Trigger value="entries">Work Log Entries</Tabs.Trigger>
-          </Tabs.List>
+        <Card>
+          <Flex justify="between" align="center">
+            <Heading size="4">Summary</Heading>
+            <Button
+              variant="ghost"
+              size="1"
+              onClick={() => fetchSummary(true)}
+              disabled={isLoadingSummary || !data || data.entries.length === 0}
+            >
+              <ReloadIcon />
+            </Button>
+          </Flex>
 
-          <Box pt="4">
-            <Tabs.Content value="summary">
-              <Card>
-                <Flex direction="column" gap="3">
-                  <Flex justify="between" align="center">
-                    <Heading size="5">AI Summary</Heading>
-                    <Button
-                      variant="soft"
-                      onClick={fetchSummary}
-                      disabled={isLoadingSummary}
+          {isLoadingSummary ? (
+            <Flex align="center" justify="center" gap="2" py="6">
+              <Spinner size="2" />
+              <Text color="gray" size="2">Generating summary...</Text>
+            </Flex>
+          ) : summary ? (
+            (() => {
+              const { preview, details } = parseSummary(summary);
+              const markdownComponents = {
+                h1: ({ children }: { children?: React.ReactNode }) => (
+                  <Heading size="5" mb="3" mt="4">
+                    {children}
+                  </Heading>
+                ),
+                h2: ({ children }: { children?: React.ReactNode }) => (
+                  <Heading size="4" mb="2" mt="4">
+                    {children}
+                  </Heading>
+                ),
+                h3: ({ children }: { children?: React.ReactNode }) => (
+                  <Heading size="3" mb="2" mt="3">
+                    {children}
+                  </Heading>
+                ),
+                p: ({ children }: { children?: React.ReactNode }) => (
+                  <Text as="p" size="2" mb="2" style={{ lineHeight: '1.7' }}>
+                    {children}
+                  </Text>
+                ),
+                strong: ({ children }: { children?: React.ReactNode }) => (
+                  <Text weight="bold">{children}</Text>
+                ),
+                ul: ({ children }: { children?: React.ReactNode }) => (
+                  <ul style={{ marginLeft: '1rem', marginBottom: '0.75rem', lineHeight: '1.7' }}>
+                    {children}
+                  </ul>
+                ),
+                ol: ({ children }: { children?: React.ReactNode }) => (
+                  <ol style={{ marginLeft: '1rem', marginBottom: '0.75rem', lineHeight: '1.7' }}>
+                    {children}
+                  </ol>
+                ),
+                li: ({ children }: { children?: React.ReactNode }) => (
+                  <li style={{ marginBottom: '0.25rem', fontSize: '0.875rem' }}>
+                    {children}
+                  </li>
+                ),
+                hr: () => <Box my="4" style={{ borderTop: '1px solid var(--gray-a6)' }} />,
+              };
+              return (
+                <Box className="markdown-content" mt="3">
+                  <ReactMarkdown components={markdownComponents}>
+                    {preview}
+                  </ReactMarkdown>
+                  {isSummaryExpanded && details && (
+                    <Box mt="3" pt="3" style={{ borderTop: '1px solid var(--gray-a6)' }}>
+                      <ReactMarkdown components={markdownComponents}>
+                        {details}
+                      </ReactMarkdown>
+                    </Box>
+                  )}
+                  {details && (
+                    <Flex
+                      justify="center"
+                      mt="3"
+                      pt="2"
+                      style={{ borderTop: '1px solid var(--gray-a6)', marginLeft: '-16px', marginRight: '-16px', paddingLeft: '16px', paddingRight: '16px' }}
                     >
-                      {isLoadingSummary ? 'Generating...' : 'Regenerate'}
-                    </Button>
-                  </Flex>
-                  <Box
-                    style={{
-                      lineHeight: '1.6',
-                    }}
-                  >
-                    {isLoadingSummary ? (
-                      <Flex align="center" gap="2" p="4">
-                        <Spinner />
-                        <Text color="gray">Generating AI summary...</Text>
-                      </Flex>
-                    ) : summary ? (
-                      <Box className="markdown-content">
-                        <ReactMarkdown
-                          components={{
-                            h1: ({ children }) => (
-                              <Heading size="7" mb="3" mt="4">
-                                {children}
-                              </Heading>
-                            ),
-                            h2: ({ children }) => (
-                              <Heading size="6" mb="2" mt="4">
-                                {children}
-                              </Heading>
-                            ),
-                            h3: ({ children }) => (
-                              <Heading size="5" mb="2" mt="3">
-                                {children}
-                              </Heading>
-                            ),
-                            p: ({ children }) => (
-                              <Text as="p" size="3" mb="3" style={{ lineHeight: '1.7' }}>
-                                {children}
-                              </Text>
-                            ),
-                            strong: ({ children }) => (
-                              <Text weight="bold">{children}</Text>
-                            ),
-                            ul: ({ children }) => (
-                              <ul style={{ marginLeft: '1rem', marginBottom: '0.75rem', lineHeight: '1.7' }}>
-                                {children}
-                              </ul>
-                            ),
-                            ol: ({ children }) => (
-                              <ol style={{ marginLeft: '1rem', marginBottom: '0.75rem', lineHeight: '1.7' }}>
-                                {children}
-                              </ol>
-                            ),
-                            li: ({ children }) => (
-                              <li style={{ marginBottom: '0.25rem', fontSize: '0.95rem' }}>
-                                {children}
-                              </li>
-                            ),
-                            hr: () => <Box my="4" style={{ borderTop: '1px solid var(--gray-a6)' }} />,
-                          }}
-                        >
-                          {summary}
-                        </ReactMarkdown>
-                      </Box>
-                    ) : (
-                      <Text color="gray">No summary available</Text>
-                    )}
-                  </Box>
-                </Flex>
-              </Card>
-            </Tabs.Content>
+                      <Button
+                        variant="ghost"
+                        size="1"
+                        onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+                      >
+                        {isSummaryExpanded ? (
+                          <>
+                            <ChevronUpIcon /> Show Less
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDownIcon /> Show More
+                          </>
+                        )}
+                      </Button>
+                    </Flex>
+                  )}
+                </Box>
+              );
+            })()
+          ) : (
+            <Text color="gray" size="2" mt="2">No summary available</Text>
+          )}
+        </Card>
 
-            <Tabs.Content value="entries">
-              {error && (
-                <Callout.Root color="red" mb="4">
-                  <Callout.Text>{error}</Callout.Text>
-                </Callout.Root>
-              )}
+        {error && (
+          <Callout.Root color="red">
+            <Callout.Text>{error}</Callout.Text>
+          </Callout.Root>
+        )}
 
-              {isLoading ? (
-                <Card>
-                  <Flex justify="center" align="center" p="6">
-                    <Spinner />
-                    <Text color="gray" ml="2">Loading work entries...</Text>
-                  </Flex>
-                </Card>
-              ) : data && data.entries.length === 0 ? (
-                <Card>
-                  <Flex justify="center" align="center" p="6" direction="column" gap="2">
-                    <Text color="gray" size="4" weight="bold">
-                      No work entries found
-                    </Text>
-                    <Text color="gray" size="2">
-                      Try adjusting your filters or log some work with the aw CLI
-                    </Text>
-                  </Flex>
-                </Card>
-              ) : (
-                data && (
-                  <Flex direction="column" gap="3">
-                    <Flex justify="between" align="center">
-                      <Text color="gray" size="2">
-                        Showing {data.entries.length} of {data.total} entries
+        {isLoading ? (
+          <Card>
+            <Flex justify="center" align="center" p="6">
+              <Spinner />
+              <Text color="gray" ml="2">Loading work entries...</Text>
+            </Flex>
+          </Card>
+        ) : data && data.entries.length === 0 ? (
+          <Card>
+            <Flex justify="center" align="center" p="6" direction="column" gap="2">
+              <Text color="gray" size="4" weight="bold">
+                No work entries found
+              </Text>
+              <Text color="gray" size="2">
+                Try adjusting your filters or log some work with the aw CLI
+              </Text>
+            </Flex>
+          </Card>
+        ) : (
+          data && (
+            <Flex direction="column" gap="3">
+              <Flex justify="between" align="center">
+                <Text color="gray" size="2">
+                  Showing {Math.min(visibleEntries, data.entries.length)} of {data.total} entries
+                </Text>
+              </Flex>
+
+              {data.entries.slice(0, visibleEntries).map((entry) => (
+                <Card key={entry.id}>
+                  <Flex direction="column" gap="2">
+                    <Flex justify="between" align="start">
+                      <Text size="3" weight="medium">
+                        {entry.taskDescription}
                       </Text>
+                      {entry.category && (
+                        <Badge color={getCategoryColor(entry.category)}>
+                          {entry.category}
+                        </Badge>
+                      )}
                     </Flex>
 
-                    {data.entries.map((entry) => (
-                      <Card key={entry.id}>
-                        <Flex direction="column" gap="2">
-                          <Flex justify="between" align="start">
-                            <Text size="3" weight="medium">
-                              {entry.taskDescription}
-                            </Text>
-                            {entry.category && (
-                              <Badge color={getCategoryColor(entry.category)}>
-                                {entry.category}
-                              </Badge>
-                            )}
-                          </Flex>
-
-                          <Flex gap="4" wrap="wrap">
-                            <Text size="2" color="gray">
-                              {formatDate(entry.timestamp)}
-                            </Text>
-                            {entry.projectName && (
-                              <Text size="2" color="gray">
-                                📁 {entry.projectName}
-                              </Text>
-                            )}
-                            {entry.gitBranch && (
-                              <Text size="2" color="gray">
-                                🌿 {entry.gitBranch}
-                              </Text>
-                            )}
-                          </Flex>
-                        </Flex>
-                      </Card>
-                    ))}
+                    <Flex gap="4" wrap="wrap">
+                      <Text size="2" color="gray">
+                        {formatDate(entry.timestamp)}
+                      </Text>
+                      {entry.projectName && (
+                        <Text size="2" color="gray">
+                          📁 {entry.projectName}
+                        </Text>
+                      )}
+                      {entry.gitBranch && (
+                        <Text size="2" color="gray">
+                          🌿 {entry.gitBranch}
+                        </Text>
+                      )}
+                    </Flex>
                   </Flex>
-                )
+                </Card>
+              ))}
+
+              {visibleEntries < data.entries.length && (
+                <Flex justify="center" pt="2">
+                  <Button
+                    variant="ghost"
+                    size="1"
+                    onClick={() => setVisibleEntries(prev => prev + ENTRIES_PER_PAGE)}
+                  >
+                    <ChevronDownIcon /> Show More
+                  </Button>
+                </Flex>
               )}
-            </Tabs.Content>
-          </Box>
-        </Tabs.Root>
+            </Flex>
+          )
+        )}
       </Flex>
     </Container>
   );

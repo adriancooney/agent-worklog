@@ -115,6 +115,7 @@ program
 
 interface WebOptions {
   port?: string;
+  host?: string;
   noBrowser?: boolean;
 }
 
@@ -149,13 +150,15 @@ program
   .command('web')
   .description('Start local API server and open web interface')
   .option('-p, --port <number>', 'Port for local API server', '24377')
+  .option('--host <url>', 'Custom webapp URL (e.g., http://localhost:3000)')
   .option('--no-browser', 'Do not open browser automatically')
   .action(async (options: WebOptions) => {
     const port = parseInt(options.port ?? '24377', 10);
+    const hostUrl = options.host ?? WEBAPP_URL;
 
     try {
       const server = await startServer({ port });
-      const webappUrl = `${WEBAPP_URL}?port=${port}&token=${server.token}`;
+      const webappUrl = `${hostUrl}?port=${port}&token=${server.token}`;
 
       console.log(`Local API server running on http://localhost:${port}\n`);
       console.log(`Open: ${webappUrl}\n`);
