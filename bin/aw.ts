@@ -128,6 +128,23 @@ function openBrowser(url: string): void {
   exec(`${command} "${url}"`);
 }
 
+// Hooks subcommands for Claude Code integration
+const hooks = program.command('hooks').description('Claude Code hook commands');
+
+hooks
+  .command('remind')
+  .description('Output worklog reminder for UserPromptSubmit hook')
+  .action(() => {
+    const output = {
+      continue: true,
+      hookSpecificOutput: {
+        hookEventName: 'UserPromptSubmit',
+        additionalContext: 'Worklog: Log completed work with aw task "description" --category <category>',
+      },
+    };
+    console.log(JSON.stringify(output));
+  });
+
 program
   .command('web')
   .description('Start local API server and open web interface')

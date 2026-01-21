@@ -397,7 +397,7 @@ describe('CLI Integration Tests', () => {
 
         const content = readFileSync(claudeMdPath, 'utf8');
         expect(content).toContain('# Agent Work Log');
-        expect(content).toContain('When to Log Work');
+        expect(content).toContain('What to Log');
         expect(content).toContain('--category');
       });
 

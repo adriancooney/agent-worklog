@@ -1,5 +1,16 @@
 # agent-worklog
 
+## 0.2.0
+
+### Minor Changes
+
+- Add UserPromptSubmit hook integration for persistent worklog reminders
+
+  - Added `aw hooks remind` command that outputs JSON for Claude Code hooks
+  - Simplified CLAUDE.md instructions (reduced from ~130 to ~20 lines)
+  - `aw install` now configures UserPromptSubmit hook in settings.json
+  - Removed external shell script dependency - CLI handles everything
+
 ## 0.1.0
 
 ### Minor Changes
