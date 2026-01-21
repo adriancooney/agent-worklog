@@ -1,6 +1,6 @@
 {
   "name": "agent-worklog",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "bin": {
     "aw": "./dist/aw.mjs"
   },
@@ -31,21 +31,15 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.12",
-    "@radix-ui/react-icons": "^1.3.2",
-    "@radix-ui/themes": "^3.2.1",
     "better-sqlite3": "^11.8.0",
     "commander": "^12.1.0",
-    "drizzle-orm": "^0.45.1",
-    "next": "16.1.3",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-markdown": "^10.1.0",
-    "swr": "^2.3.8",
-    "tsx": "^4.19.2"
+    "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.0",
     "@changesets/cli": "^2.29.8",
+    "@radix-ui/react-icons": "^1.3.2",
+    "@radix-ui/themes": "^3.2.1",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^20",
@@ -53,8 +47,14 @@
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
     "drizzle-kit": "^0.31.8",
+    "next": "16.1.3",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-markdown": "^10.1.0",
+    "swr": "^2.3.8",
     "tailwindcss": "^4",
     "tsup": "^8.5.1",
+    "tsx": "^4.19.2",
     "typescript": "^5",
     "vercel": "^50.4.7",
     "vitest": "^4.0.17",

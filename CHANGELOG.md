@@ -1,5 +1,14 @@
 # agent-worklog
 
+## 0.2.1
+
+### Patch Changes
+
+- Move webapp dependencies (Next.js, React, etc.) to devDependencies
+
+  The CLI only needs commander, drizzle-orm, better-sqlite3, and claude-agent-sdk.
+  Next.js and React are only needed for local webapp development and Vercel deployment.
+
 ## 0.2.0
 
 ### Minor Changes
