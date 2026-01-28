@@ -391,8 +391,9 @@ describe('CLI Integration Tests', () => {
 
     it('should display help for install command', async () => {
       const result = await runInstallCli('install --help');
-      expect(result.stdout).toContain('Install worklog skill and instructions for Claude Code');
+      expect(result.stdout).toContain('Install worklog instructions for AI coding tools');
       expect(result.stdout).toContain('--global');
+      expect(result.stdout).toContain('--harness');
     });
 
     describe('Global Installation', () => {
@@ -431,8 +432,7 @@ describe('CLI Integration Tests', () => {
         const result = await runInstallCli('install --global');
 
         expect(result.stdout).toContain('Installing Agent Work Log globally');
-        expect(result.stdout).toContain('Successfully installed');
-        expect(result.stdout).toContain('available in all Claude Code sessions');
+        expect(result.stdout).toContain('Installation complete');
       });
 
       it('should not duplicate CLAUDE.md content on second install', async () => {
@@ -507,8 +507,7 @@ describe('CLI Integration Tests', () => {
         const result = await runInstallCli('install', projectDir);
 
         expect(result.stdout).toContain('Installing Agent Work Log locally');
-        expect(result.stdout).toContain('Successfully installed');
-        expect(result.stdout).toContain('available for this project');
+        expect(result.stdout).toContain('Installation complete');
       });
 
       it('should install to different projects independently', async () => {
@@ -565,8 +564,9 @@ describe('CLI Integration Tests', () => {
 
     it('should display help for uninstall command', async () => {
       const result = await runUninstallCli('uninstall --help');
-      expect(result.stdout).toContain('Remove worklog skill and instructions from Claude Code');
+      expect(result.stdout).toContain('Remove worklog instructions from AI coding tools');
       expect(result.stdout).toContain('--global');
+      expect(result.stdout).toContain('--harness');
     });
 
     describe('Global Uninstall', () => {
@@ -622,7 +622,7 @@ describe('CLI Integration Tests', () => {
         const result = await runUninstallCli('uninstall --global');
 
         expect(result.stdout).toContain('Uninstalling Agent Work Log globally');
-        expect(result.stdout).toContain('Successfully uninstalled');
+        expect(result.stdout).toContain('Uninstallation complete');
       });
     });
 
@@ -662,7 +662,7 @@ describe('CLI Integration Tests', () => {
         const result = await runUninstallCli('uninstall', projectDir);
 
         expect(result.stdout).toContain('Uninstalling Agent Work Log locally');
-        expect(result.stdout).toContain('Successfully uninstalled');
+        expect(result.stdout).toContain('Uninstallation complete');
       });
     });
 
@@ -672,7 +672,8 @@ describe('CLI Integration Tests', () => {
 
         try {
           const result = await runUninstallCli('uninstall', emptyDir);
-          expect(result.stdout).toContain('Nothing to uninstall');
+          // Falls back to AGENTS.md when no harnesses detected
+          expect(result.stdout).toContain('not found');
         } finally {
           rmSync(emptyDir, { recursive: true, force: true });
         }

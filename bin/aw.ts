@@ -1,7 +1,14 @@
 import { Command } from 'commander';
 import { exec } from 'node:child_process';
 import { logTask, collectMetadata } from '../src/db.js';
-import { install, uninstall } from '../src/install.js';
+import {
+  detectAndInstall,
+  detectAndUninstall,
+  detectHarnesses,
+  getHarness,
+  getHarnessNames,
+  type InstallResult,
+} from '../src/harnesses/index.js';
 import { generateSummary } from '../src/summary.js';
 import { startServer } from '../src/server.js';
 
@@ -42,14 +49,58 @@ program
     }
   });
 
+function printResults(harnessName: string, results: InstallResult[]): void {
+  console.log(`\n${harnessName}:`);
+  for (const result of results) {
+    const prefix = result.success ? '✓' : '✗';
+    console.log(`  ${prefix} ${result.message}`);
+  }
+}
+
 program
   .command('install')
-  .description('Install worklog skill and instructions for Claude Code')
-  .option('-g, --global', 'Install globally to ~/.claude/ instead of local ./.claude/')
-  .action((options: { global?: boolean }) => {
+  .description('Install worklog instructions for AI coding tools')
+  .option('-g, --global', 'Install globally instead of locally')
+  .option('--harness <name>', `Specific harness: ${getHarnessNames().join(', ')}`)
+  .action(async (options: { global?: boolean; harness?: string }) => {
     try {
       const isGlobal = options.global ?? false;
-      install(isGlobal);
+      const scope = isGlobal ? 'globally' : 'locally';
+
+      if (options.harness) {
+        const harness = getHarness(options.harness);
+        if (!harness) {
+          console.error(`Unknown harness: ${options.harness}`);
+          console.error(`Available: ${getHarnessNames().join(', ')}`);
+          process.exit(1);
+        }
+        console.log(`Installing Agent Work Log ${scope} for ${harness.displayName}...`);
+      } else {
+        const detected = await detectHarnesses();
+        if (detected.length === 0) {
+          console.log(`Installing Agent Work Log ${scope} (no specific tool detected, using AGENTS.md)...`);
+        } else {
+          const names = detected.map((h) => h.displayName).join(', ');
+          console.log(`Installing Agent Work Log ${scope} for detected tools: ${names}...`);
+        }
+      }
+
+      const results = await detectAndInstall(isGlobal, options.harness);
+
+      let hasErrors = false;
+      for (const [harnessName, harnessResults] of results) {
+        const harness = getHarness(harnessName);
+        printResults(harness?.displayName ?? harnessName, harnessResults);
+        if (harnessResults.some((r) => !r.success)) {
+          hasErrors = true;
+        }
+      }
+
+      if (hasErrors) {
+        console.log('\n⚠ Installation completed with some warnings');
+      } else {
+        console.log('\n✓ Installation complete');
+      }
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error: ${error.message}`);
@@ -62,12 +113,48 @@ program
 
 program
   .command('uninstall')
-  .description('Remove worklog skill and instructions from Claude Code')
-  .option('-g, --global', 'Uninstall globally from ~/.claude/ instead of local ./.claude/')
-  .action((options: { global?: boolean }) => {
+  .description('Remove worklog instructions from AI coding tools')
+  .option('-g, --global', 'Uninstall globally instead of locally')
+  .option('--harness <name>', `Specific harness: ${getHarnessNames().join(', ')}`)
+  .action(async (options: { global?: boolean; harness?: string }) => {
     try {
       const isGlobal = options.global ?? false;
-      uninstall(isGlobal);
+      const scope = isGlobal ? 'globally' : 'locally';
+
+      if (options.harness) {
+        const harness = getHarness(options.harness);
+        if (!harness) {
+          console.error(`Unknown harness: ${options.harness}`);
+          console.error(`Available: ${getHarnessNames().join(', ')}`);
+          process.exit(1);
+        }
+        console.log(`Uninstalling Agent Work Log ${scope} from ${harness.displayName}...`);
+      } else {
+        const detected = await detectHarnesses();
+        if (detected.length === 0) {
+          console.log(`Uninstalling Agent Work Log ${scope} from AGENTS.md...`);
+        } else {
+          const names = detected.map((h) => h.displayName).join(', ');
+          console.log(`Uninstalling Agent Work Log ${scope} from detected tools: ${names}...`);
+        }
+      }
+
+      const results = await detectAndUninstall(isGlobal, options.harness);
+
+      let hasErrors = false;
+      for (const [harnessName, harnessResults] of results) {
+        const harness = getHarness(harnessName);
+        printResults(harness?.displayName ?? harnessName, harnessResults);
+        if (harnessResults.some((r) => !r.success)) {
+          hasErrors = true;
+        }
+      }
+
+      if (hasErrors) {
+        console.log('\n⚠ Uninstallation completed with some warnings');
+      } else {
+        console.log('\n✓ Uninstallation complete');
+      }
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error: ${error.message}`);
@@ -147,8 +234,8 @@ function openBrowser(url: string): void {
   exec(`${command} "${url}"`);
 }
 
-// Hooks subcommands for Claude Code integration
-const hooks = program.command('hooks').description('Claude Code hook commands');
+// Hooks subcommands for Claude Code integration (only Claude Code supports hooks)
+const hooks = program.command('hooks').description('Claude Code hook commands (Claude Code only)');
 
 hooks
   .command('remind')

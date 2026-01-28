@@ -7,6 +7,7 @@ import { mkdirSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { workEntries, type NewWorkEntry } from './schema.js';
+import { getSessionId } from './harnesses/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -63,7 +64,7 @@ function getProjectName(cwd: string): string {
 
 export function collectMetadata(cwd: string): TaskMetadata {
   return {
-    sessionId: process.env.CLAUDE_SESSION_ID,
+    sessionId: getSessionId() ?? undefined,
     projectName: getProjectName(cwd),
     gitBranch: getGitBranch(cwd),
     workingDirectory: cwd,
